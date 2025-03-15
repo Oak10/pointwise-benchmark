@@ -15,9 +15,10 @@ class SubtractiveClustering:
         Subtractive clustering assumes that each data point is a potential cluster center. The algorithm does the following:
             1 - Calculate the likelihood that each data point would define a cluster center, based on the density of surrounding data points.
             2 - Choose the data point with the highest potential to be the first cluster center.
-            3 - Remove all data points near the first cluster center. The vicinity is determined using clusterInfluenceRange.
+            3 - Suppress the potential of points within the influence range of the identified cluster center to prevent redundant centers
             4 - Choose the remaining point with the highest potential as the next cluster center.
-            5 - Repeat steps 3 and 4 until all the data is within the influence range of a cluster center.
+            4.1 - If the point potential is between the acceptance and rejection thresholds, its distance to existing centers is checked to determine its validity.
+            5 - Repeat steps 3 and 4 until no point has a potential greater than the rejection threshold
 
         The subtractive clustering method is an extension of the mountain clustering method proposed in [2].
     
@@ -74,7 +75,7 @@ class SubtractiveClustering:
         cluster_centers.append(data[first_center_idx])
         P1 = max_potential
 
-        # Adjust potentials iteratively
+        # Iterative cluster selection
         while True:
             # Suppress potential of points near the most recent cluster center
             distances = np.linalg.norm(data - cluster_centers[-1], axis=1)
@@ -90,18 +91,21 @@ class SubtractiveClustering:
                 new_center_idx = np.argmax(potentials)
                 cluster_centers.append(data[new_center_idx])
             else:
+                # Ambiguous Case: Evaluate points with moderate potential
                 # Ambiguous case, find the minimum distance to existing centers
                 new_center_idx = np.argmax(potentials)
                 new_point = data[new_center_idx]
-                distances_to_centers = np.linalg.norm(cluster_centers - new_point, axis=1)
+
+                # Check distance to existing centers
+                distances_to_centers = np.linalg.norm(np.array(cluster_centers) - new_point, axis=1)
                 dmin = np.min(distances_to_centers)
 
                 # Accept if sufficiently far from existing centers
                 if dmin / self.cluster_influence_range + max_potential / P1 >= 1:
                     cluster_centers.append(new_point)
                 else:
-                    # Stop if the conditions for accepting are not met
-                    break
+                    # Suppress this point's potential and continue
+                    potentials[new_center_idx] = 0
 
         self.cluster_centers = np.array(cluster_centers)
         return self.cluster_centers
