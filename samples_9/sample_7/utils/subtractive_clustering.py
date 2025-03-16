@@ -1,35 +1,30 @@
 import numpy as np
 
-# TODO: Subtractive clustering for categorical data https://ieeexplore.ieee.org/abstract/document/7603354
-# another implementation: https://github.com/alanjeffares/subtractive-clustering/blob/master/subtractive_clustering.py
-#       based -> (Approx from our implementation)Support vector machines based on subtractive clustering: https://ieeexplore.ieee.org/abstract/document/1527702
-
-
 class SubtractiveClustering:
     """
     Subtractive Clustering Algorithm for finding cluster centers.
 
-    Based on: https://www.mathworks.com/help/fuzzy/subclust.html
+    Based on:
+        -  https://www.mathworks.com/help/fuzzy/subclust.html
+        - Chiu (1994): Fuzzy Model Identification Based on Cluster Estimation.
 
-    Algorithms:
-        Subtractive clustering assumes that each data point is a potential cluster center. The algorithm does the following:
-            1 - Calculate the likelihood that each data point would define a cluster center, based on the density of surrounding data points.
-            2 - Choose the data point with the highest potential to be the first cluster center.
-            3 - Suppress the potential of points within the influence range of the identified cluster center to prevent redundant centers
-            4 - Choose the remaining point with the highest potential as the next cluster center.
-            4.1 - If the point potential is between the acceptance and rejection thresholds, its distance to existing centers is checked to determine its validity.
-            5 - Repeat steps 3 and 4 until no point has a potential greater than the rejection threshold
+    Algorithm Steps:
+        1. Compute the density (potential) for each data point:
+            D_i = sum_{j=1}^{n} exp(-||x_i - x_j||^2 / (r_a/2)^2)
+        Where:
+        - r_a is the cluster influence range.
 
-        The subtractive clustering method is an extension of the mountain clustering method proposed in [2].
-    
-    Refs:
-    1. Chiu, Stephen L. “Fuzzy Model Identification Based on Cluster Estimation.” 
-    Journal of Intelligent and Fuzzy Systems 2, no. 3 (1994): 267–78.
-    https://doi.org/10.3233/IFS-1994-2306.
+        2. Select the point with the highest potential as the first cluster center.
+        3. Suppress the potential of points within the influence range (scaled by squash_factor) of the identified center.
+        4. Choose the next highest potential point as the next cluster center.
+          4.1 If the point's potential is between acceptance and rejection thresholds, evaluate its distance to existing centers using:
+          (d_min / r_a) + (D_ck / D_1) ≥ 1.
+        5. Repeat steps 3 and 4 until no points exceed the rejection threshold.
 
-    2. Yager, Ronald R., and Dimitar P. Filev. “Generation of Fuzzy Rules by Mountain Clustering.” 
-    Journal of Intelligent and Fuzzy Systems 2, no. 3 (1994): 209–19.
-    https://doi.org/10.3233/IFS-1994-2301.
+    References:
+    [1] Chiu, Stephen L. "Fuzzy Model Identification Based on Cluster Estimation."
+        Journal of Intelligent and Fuzzy Systems 2, no. 3 (1994): 267–278.
+        https://doi.org/10.3233/IFS-1994-2306.
     """
 
     def __init__(self, cluster_influence_range=0.5, squash_factor=1.25, acceptance_ratio=0.5, rejection_ratio=0.15):
@@ -61,28 +56,33 @@ class SubtractiveClustering:
         # Number of samples
         n_samples = data.shape[0]
 
-        # Compute potential for each data point
+        # Compute influence (r_a/2)
+        influence_radius = self.cluster_influence_range / 2
+
+        # Compute potentials
         potentials = np.zeros(n_samples)
         for i in range(n_samples):
             # https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html
             distances = np.linalg.norm(data - data[i], axis=1)
-            potentials[i] = np.sum(np.exp(-((distances**2) / (self.cluster_influence_range**2))))
+            potentials[i] = np.sum(np.exp(-((distances ** 2) / (influence_radius ** 2))))
 
-        # Initialize list of cluster centers
+        # Initialize cluster centers
         cluster_centers = []
         max_potential = np.max(potentials)
         first_center_idx = np.argmax(potentials)
         cluster_centers.append(data[first_center_idx])
         P1 = max_potential
 
-        # Iterative cluster selection
+        # Iterative selection of clusters
         while True:
-            # Suppress potential of points near the most recent cluster center
+            # Suppress potentials of points near the most recently added cluster center (Eq. 2)
+
             distances = np.linalg.norm(data - cluster_centers[-1], axis=1)
-            potentials -= P1 * np.exp(-((distances**2) / ((self.squash_factor * self.cluster_influence_range)**2)))
+            potentials -= P1 * np.exp(-((distances ** 2) / ((self.squash_factor * influence_radius) ** 2)))
 
             # Find next highest potential point
             max_potential = np.max(potentials)
+
             if max_potential < self.rejection_ratio * P1:
                 # Stop if maximum potential is below the rejection threshold
                 break
@@ -100,12 +100,11 @@ class SubtractiveClustering:
                 distances_to_centers = np.linalg.norm(np.array(cluster_centers) - new_point, axis=1)
                 dmin = np.min(distances_to_centers)
 
-                # Accept if sufficiently far from existing centers
+                # Accept if sufficiently far from existing centers ((Eq. 3))
                 if dmin / self.cluster_influence_range + max_potential / P1 >= 1:
                     cluster_centers.append(new_point)
                 else:
-                    # Suppress this point's potential and continue
-                    potentials[new_center_idx] = 0
+                    potentials[new_center_idx] = 0  # suppress ambiguous point potential
 
         self.cluster_centers = np.array(cluster_centers)
         return self.cluster_centers
