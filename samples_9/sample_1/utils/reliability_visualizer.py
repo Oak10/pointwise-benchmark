@@ -319,55 +319,6 @@ class ReliabilityVisualizer:
         plt.show()
 
 
-    def plot_population_and_error_rate_by_class_maior_50(self, df):
-        """
-        Overlay population distribution and error rate for reliability intervals, separated by class (0 and 1).
-
-        Parameters:
-        - df: DataFrame with reliability intervals and counts for each prediction category.
-        """
-        # Calculate total predictions and error rate for each class
-        df["Total Class 0 Predictions"] = df["Correct (0)"] + df["Incorrect (0)"]
-        df["Total Class 1 Predictions"] = df["Correct (1)"] + df["Incorrect (1)"]
-        df["Class 0 Error Rate"] = df["Incorrect (0)"] / df["Total Class 0 Predictions"]
-        df["Class 1 Error Rate"] = df["Incorrect (1)"] / df["Total Class 1 Predictions"]
-
-        # Filter data to include only reliability intervals from ]0.50, 0.60] onwards
-        filtered_df = df[df["Reliability"].isin([
-            "]0.50, 0.60]", "]0.60, 0.70]", "]0.70, 0.80]", "]0.80, 0.90]", "]0.90, 1.00]"
-        ])]
-
-        fig, ax1 = plt.subplots(figsize=(12, 7))
-
-        # Bar plot for class 0 and class 1 population
-        bar_width = 0.35
-        x = np.arange(len(filtered_df))
-        ax1.bar(x - bar_width / 2, filtered_df["Total Class 0 Predictions"], width=bar_width, color="skyblue", alpha=0.6, label="Class 0 Population")
-        ax1.bar(x + bar_width / 2, filtered_df["Total Class 1 Predictions"], width=bar_width, color="lightgreen", alpha=0.6, label="Class 1 Population")
-        ax1.set_xlabel("Reliability Intervals")
-        ax1.set_ylabel("Population Count", color="black")
-        ax1.set_xticks(x)
-        ax1.set_xticklabels(filtered_df["Reliability"], rotation=45, ha="right")
-        ax1.tick_params(axis='y', labelcolor="black")
-
-        # Overlay line plot for error rates
-        ax2 = ax1.twinx()
-        ax2.plot(x, filtered_df["Class 0 Error Rate"], color="blue", marker="o", label="Class 0 Error Rate")
-        ax2.plot(x, filtered_df["Class 1 Error Rate"], color="green", marker="o", label="Class 1 Error Rate")
-        ax2.set_ylabel("Error Rate", color="black")
-        ax2.tick_params(axis='y', labelcolor="black")
-
-        # Adding legend
-        lines, labels = ax2.get_legend_handles_labels()
-        bars, bar_labels = ax1.get_legend_handles_labels()
-        ax1.legend(bars + lines, bar_labels + labels, loc="upper right")
-
-        # Title and layout
-        fig.suptitle("Population Distribution and Error Rate by Class Across Reliability Intervals")
-        plt.tight_layout()
-        plt.show()
-
-
 
 # #######################################  T-SNE
 
