@@ -457,7 +457,7 @@ class ReliabilityVisualizer:
 
         # Legend
         interval_legend_handles = [
-            plt.Line2D([0], [0], marker='o', color=color, label=f"{interval.left:.2f}-{interval.right:.2f}", markersize=8, linestyle='')
+            plt.Line2D([0], [0], marker='o', color=color, label = f"{0.00 if interval.left < 0 else interval.left:.2f}–{interval.right:.2f}", markersize=8, linestyle='')
             for interval, color in interval_colors.items()
         ]
         data_type_handles = [
